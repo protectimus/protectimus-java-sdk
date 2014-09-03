@@ -21,7 +21,7 @@ public class AuthenticationSample {
 					"v1");
 
 			// IP-address of the end user. Must be specified to perform the
-			// validation of geo-filter.
+			// validation of the geo-filter.
 			String ip = "192.168.15.1";
 
 			System.out.println("GETTING A BALANCE");
@@ -60,14 +60,14 @@ public class AuthenticationSample {
 			// before authentication to send sms for SMS-token or send e-mail
 			// for
 			// MAIL-token or get challenge string for PROTECTIMUS_ULTRA-token.
-			api.prepareAuthentication(resourceId, tokenId, null, null);
+			api.prepareAuthentication(resourceId, null, tokenId, null, null);
 
 			// one-time password
 			String otp = "123456";
 			// authenticates MAIL-token with one-time password
 			System.out.println();
 			System.out.println("AUTHENTICATION WITH ONE-TIME PASSWORD");
-			boolean authenticationResult = api.authenticateToken(resourceId,
+			boolean authenticationResult = api.authenticateToken(resourceId, null, 
 					tokenId, otp, ip);
 			System.out.println("AUTHENTICATION RESULT =>>> "
 					+ authenticationResult);
@@ -81,7 +81,7 @@ public class AuthenticationSample {
 			// authenticates user with static password
 			System.out.println();
 			System.out.println("AUTHENTICATION WITH STATIC USER PASSWORD");
-			authenticationResult = api.authenticateUserPassword(resourceId,
+			authenticationResult = api.authenticateUserPassword(resourceId, null, 
 					userId, null, userPassword, ip);
 			System.out.println("AUTHENTICATION RESULT =>>> "
 					+ authenticationResult);
@@ -102,10 +102,10 @@ public class AuthenticationSample {
 			// authenticates token of user with one-time password
 			System.out.println();
 			System.out.println("PREPARING AUTHENTICATION");
-			api.prepareAuthentication(resourceId, tokenId, null, null);
+			api.prepareAuthentication(resourceId, null, tokenId, null, null);
 
 			System.out.println("AUTHENTICATION WITH ONE-TIME PASSWORD");
-			authenticationResult = api.authenticateUserToken(resourceId,
+			authenticationResult = api.authenticateUserToken(resourceId, null, 
 					userId, null, otp, ip);
 			System.out.println("AUTHENTICATION RESULT =>>> "
 					+ authenticationResult);
@@ -114,11 +114,11 @@ public class AuthenticationSample {
 			// static password
 			System.out.println();
 			System.out.println("PREPARING AUTHENTICATION");
-			api.prepareAuthentication(resourceId, tokenId, null, null);
+			api.prepareAuthentication(resourceId, null, tokenId, null, null);
 			System.out
 					.println("AUTHENTICATION WITH ONE-TIME PASSWORD AND STATIC USER PASSWORD");
 			authenticationResult = api.authenticateUserPasswordToken(
-					resourceId, userId, null, otp, userPassword, ip);
+					resourceId, null, userId, null, otp, userPassword, ip);
 			System.out.println("AUTHENTICATION RESULT =>>> "
 					+ authenticationResult);
 

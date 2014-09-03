@@ -28,6 +28,13 @@ public class ProtectimusApi {
 	private String apikey;
 	private String version;
 
+	public ProtectimusApi(String username, String apikey) {
+		this.apiUrl = "https://api.protectimus.com/";
+		this.version = "v1";
+		this.username = username;
+		this.apikey = apikey;
+	}
+	
 	public ProtectimusApi(String apiUrl, String username, String apikey) {
 		this.apiUrl = apiUrl;
 		this.username = username;
@@ -64,6 +71,7 @@ public class ProtectimusApi {
 	 * get challenge string for PROTECTIMUS_ULTRA-token.
 	 * 
 	 * @param resourceId
+	 * @param resourceName
 	 * @param tokenId
 	 * @param userId
 	 * @param userLogin
@@ -71,12 +79,12 @@ public class ProtectimusApi {
 	 *         SMS and MAIL tokens
 	 * @throws ProtectimusApiException
 	 */
-	public Prepare prepareAuthentication(long resourceId, Long tokenId,
+	public Prepare prepareAuthentication(long resourceId, String resourceName, Long tokenId,
 			Long userId, String userLogin) throws ProtectimusApiException {
 		AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parsePrepareResult(authServiceClient.prepare(String
-                .valueOf(resourceId), null,
+                .valueOf(resourceId), resourceName,
                 tokenId != null ? String.valueOf(tokenId) : "",
                 userId != null ? String.valueOf(userId) : "",
                 userLogin != null ? String.valueOf(userLogin) : ""));
@@ -85,9 +93,10 @@ public class ProtectimusApi {
 	/**
 	 * 
 	 * Performs authentication for token with id <code>tokenId</code>, which is
-	 * assigned to resource with id <code>resourceId</code>.
+	 * assigned to resource with id <code>resourceId</code> (or name <code>resourceName</code>).
 	 * 
 	 * @param resourceId
+	 * @param resourceName
 	 * @param tokenId
 	 * @param otp
 	 *            - one-time password from token
@@ -97,22 +106,23 @@ public class ProtectimusApi {
 	 * @return true if authentication was successful; false otherwise.
 	 * @throws ProtectimusApiException
 	 */
-	public boolean authenticateToken(long resourceId, long tokenId, String otp,
+	public boolean authenticateToken(long resourceId, String resourceName, long tokenId, String otp,
 			String ip) throws ProtectimusApiException {
 		AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parseAuthenticationResult(authServiceClient
-				.authenticateToken(String.valueOf(resourceId), null,
+				.authenticateToken(String.valueOf(resourceId), resourceName,
 						String.valueOf(tokenId), otp, ip));
 	}
 
 	/**
 	 * 
 	 * Performs static password authentication for user with id
-	 * <code>userId</code> or login <code>userLogin</code>, which is assigned to
-	 * resource with id <code>resourceId</code>.
+	 * <code>userId</code> (or login <code>userLogin</code>), which is assigned to
+	 * resource with id <code>resourceId</code> (or name <code>resourceName</code>).
 	 * 
 	 * @param resourceId
+	 * @param resourceName
 	 * @param userId
 	 * @param userLogin
 	 * @param password
@@ -123,23 +133,24 @@ public class ProtectimusApi {
 	 * @return true if authentication was successful; false otherwise.
 	 * @throws ProtectimusApiException
 	 */
-	public boolean authenticateUserPassword(long resourceId, long userId,
+	public boolean authenticateUserPassword(long resourceId, String resourceName, long userId,
 			String userLogin, String password, String ip)
 			throws ProtectimusApiException {
 		AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parseAuthenticationResult(authServiceClient
-				.authenticateUserPassword(String.valueOf(resourceId), null,
+				.authenticateUserPassword(String.valueOf(resourceId), resourceName,
 						String.valueOf(userId), userLogin, password, ip));
 	}
 
 	/**
 	 * 
 	 * Performs one-time password authentication for user with id
-	 * <code>userId</code> or login <code>userLogin</code>, which is assigned
-	 * with token to resource with id <code>resourceId</code>.
+	 * <code>userId</code> (or login <code>userLogin</code>), which is assigned
+	 * with token to resource with id <code>resourceId</code> (or name <code>resourceName</code>).
 	 * 
 	 * @param resourceId
+	 * @param resourceName
 	 * @param userId
 	 * @param userLogin
 	 * @param otp
@@ -150,13 +161,13 @@ public class ProtectimusApi {
 	 * @return true if authentication was successful; false otherwise.
 	 * @throws ProtectimusApiException
 	 */
-	public boolean authenticateUserToken(long resourceId, Long userId,
+	public boolean authenticateUserToken(long resourceId, String resourceName, Long userId,
 			String userLogin, String otp, String ip)
 			throws ProtectimusApiException {
 		AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parseAuthenticationResult(authServiceClient
-				.authenticateUserToken(String.valueOf(resourceId), null,
+				.authenticateUserToken(String.valueOf(resourceId), resourceName,
 						userId != null ? String.valueOf(userId) : "",
 						userLogin, otp, ip));
 	}
@@ -164,10 +175,11 @@ public class ProtectimusApi {
 	/**
 	 * 
 	 * Performs one-time password and static password authentication for user
-	 * with id <code>userId</code> or login <code>userLogin</code>, which is
-	 * assigned with token to resource with id <code>resourceId</code>.
+	 * with id <code>userId</code> (or login <code>userLogin</code>), which is
+	 * assigned with token to resource with id <code>resourceId</code> (or name <code>resourceName</code>).
 	 * 
 	 * @param resourceId
+	 * @param resourceName
 	 * @param userId
 	 * @param userLogin
 	 * @param otp
@@ -180,14 +192,14 @@ public class ProtectimusApi {
 	 * @return true if authentication was successful; false otherwise.
 	 * @throws ProtectimusApiException
 	 */
-	public boolean authenticateUserPasswordToken(long resourceId, long userId,
+	public boolean authenticateUserPasswordToken(long resourceId, String resourceName, long userId,
 			String userLogin, String otp, String password, String ip)
 			throws ProtectimusApiException {
 		AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parseAuthenticationResult(authServiceClient
 				.authenticateUserPasswordToken(String.valueOf(resourceId),
-						null, String.valueOf(userId), userLogin, otp, password,
+						resourceName, String.valueOf(userId), userLogin, otp, password,
 						ip));
 	}
 
