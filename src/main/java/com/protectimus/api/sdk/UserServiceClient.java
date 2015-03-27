@@ -1,9 +1,18 @@
+/**
+ * Copyright (C) 2013-2014 INSART <vsolo@insart.com>
+ *
+ * This file is part of Protectimus.
+ *
+ * Protectimus can not be copied and/or distributed without the express
+ * permission of INSART
+ */
 package com.protectimus.api.sdk;
 
 import javax.ws.rs.core.MediaType;
 
 import com.protectimus.api.sdk.enums.ResponseFormat;
 import com.protectimus.api.sdk.exceptions.ProtectimusApiException;
+import com.protectimus.api.sdk.filters.UserFilter;
 import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.WebResource;
 import com.sun.jersey.api.representation.Form;
@@ -21,10 +30,33 @@ class UserServiceClient extends AbstractServiceClient {
 		super(apiUrl, username, password, responseFormat, version);
 	}
 
-	public String getUsers(String offset) throws ProtectimusApiException {
+	public String getUsers(UserFilter userFilter, String offset, String limit) throws ProtectimusApiException {
 		WebResource webResource = getWebResource();
-		ClientResponse response = webResource.path("users" + getExtension())
-				.queryParam("start", offset).get(ClientResponse.class);
+        webResource = webResource.path("users" + getExtension())
+                .queryParam("start", offset).queryParam("limit", limit);
+
+        if (userFilter != null) {
+            if (userFilter.getLogin() != null) {
+                webResource = webResource.queryParam("login", userFilter.getLogin());
+            }
+            if (userFilter.getEmail() != null) {
+                webResource = webResource.queryParam("email", userFilter.getEmail());
+            }
+            if (userFilter.getFirstName() != null) {
+                webResource = webResource.queryParam("firstName", userFilter.getFirstName());
+            }
+            if (userFilter.getSecondName() != null) {
+                webResource = webResource.queryParam("secondName", userFilter.getSecondName());
+            }
+            if (userFilter.getBlock() != null) {
+                webResource = webResource.queryParam("block", userFilter.getBlock().name());
+            }
+            if (userFilter.getResourceIds() != null) {
+                webResource = webResource.queryParam("resourceIds", userFilter.getResourceIds());
+            }
+        }
+
+		ClientResponse response = webResource.get(ClientResponse.class);
 		return checkResponse(response);
 	}
 
@@ -105,12 +137,12 @@ class UserServiceClient extends AbstractServiceClient {
 		return checkResponse(response);
 	}
 
-	public String getUserTokens(String userId, String offset)
+	public String getUserTokens(String userId, String offset, String limit)
 			throws ProtectimusApiException {
 		WebResource webResource = getWebResource();
 		ClientResponse response = webResource.path("users").path(userId)
 				.path("tokens" + getExtension()).queryParam("start", offset)
-				.get(ClientResponse.class);
+                .queryParam("limit", limit).get(ClientResponse.class);
 		return checkResponse(response);
 	}
 

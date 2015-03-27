@@ -1,21 +1,27 @@
+/**
+ * Copyright (C) 2013-2014 INSART <vsolo@insart.com>
+ *
+ * This file is part of Protectimus.
+ *
+ * Protectimus can not be copied and/or distributed without the express
+ * permission of INSART
+ */
 package com.protectimus.api.sdk;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigDecimal;
+import java.security.GeneralSecurityException;
 import java.util.List;
 
-import com.protectimus.api.sdk.enums.OtpKeyType;
-import com.protectimus.api.sdk.enums.PinOtpFormat;
-import com.protectimus.api.sdk.enums.ResponseFormat;
-import com.protectimus.api.sdk.enums.TokenType;
-import com.protectimus.api.sdk.enums.UnifyKeyAlgo;
-import com.protectimus.api.sdk.enums.UnifyKeyFormat;
-import com.protectimus.api.sdk.enums.UnifyTokenType;
+import com.protectimus.api.sdk.enums.*;
 import com.protectimus.api.sdk.exceptions.ProtectimusApiException;
 import com.protectimus.api.sdk.exceptions.ProtectimusApiException.ErrorCode;
-import com.protectimus.api.sdk.pojo.Prepare;
-import com.protectimus.api.sdk.pojo.Resource;
-import com.protectimus.api.sdk.pojo.Token;
-import com.protectimus.api.sdk.pojo.User;
+import com.protectimus.api.sdk.filters.TokenFilter;
+import com.protectimus.api.sdk.filters.UserFilter;
+import com.protectimus.api.sdk.pojo.*;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * 
@@ -27,14 +33,15 @@ public class ProtectimusApi {
 	private String username;
 	private String apikey;
 	private String version;
+    private String additional;
 
-	public ProtectimusApi(String username, String apikey) {
-		this.apiUrl = "https://api.protectimus.com/";
-		this.version = "v1";
-		this.username = username;
-		this.apikey = apikey;
-	}
-	
+    public ProtectimusApi(String username, String apikey) {
+        this.username = username;
+        this.apikey = apikey;
+        this.version = "v1";
+        this.apiUrl = "https://api.protectimus.com";
+    }
+
 	public ProtectimusApi(String apiUrl, String username, String apikey) {
 		this.apiUrl = apiUrl;
 		this.username = username;
@@ -49,6 +56,10 @@ public class ProtectimusApi {
 		this.apikey = apikey;
 		this.version = version;
 	}
+
+    public String getAdditional() {
+        return additional;
+    }
 
 	/**
 	 * 
@@ -71,7 +82,6 @@ public class ProtectimusApi {
 	 * get challenge string for PROTECTIMUS_ULTRA-token.
 	 * 
 	 * @param resourceId
-	 * @param resourceName
 	 * @param tokenId
 	 * @param userId
 	 * @param userLogin
@@ -79,24 +89,67 @@ public class ProtectimusApi {
 	 *         SMS and MAIL tokens
 	 * @throws ProtectimusApiException
 	 */
-	public Prepare prepareAuthentication(long resourceId, String resourceName, Long tokenId,
+	public Prepare prepareAuthentication(long resourceId, Long tokenId,
 			Long userId, String userLogin) throws ProtectimusApiException {
 		AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parsePrepareResult(authServiceClient.prepare(String
-                .valueOf(resourceId), resourceName,
+                .valueOf(resourceId), null,
                 tokenId != null ? String.valueOf(tokenId) : "",
                 userId != null ? String.valueOf(userId) : "",
                 userLogin != null ? String.valueOf(userLogin) : ""));
 	}
 
-	/**
+    /**
+     *
+     * Performs static environment check for user with id
+     * <code>userId</code> or login <code>userLogin</code>, which is assigned to
+     * resource with id <code>resourceId</code>.
+     *
+     * @param resourceId
+     * @param userId
+     * @param userLogin
+     * @param jsonEnvironment
+     *            - user environment in JSON format (see documentation)
+     * @return match percent for current environment in users list.
+     * @throws ProtectimusApiException
+     */
+    public int checkEnvironment(long resourceId, long userId,
+                                            String userLogin, String jsonEnvironment)
+            throws ProtectimusApiException {
+        AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
+                username, this.apikey, ResponseFormat.XML, version);
+        return XmlUtils.parseQuantity(authServiceClient
+                .checkEnvironment(String.valueOf(resourceId), null,
+                        String.valueOf(userId), userLogin, jsonEnvironment));
+    }
+
+    /**
+     *
+     * Performs static environment save for user with id
+     * <code>userId</code> or login <code>userLogin</code>
+     *
+     * @param userId
+     * @param userLogin
+     * @param jsonEnvironment
+     *            - user environment in JSON format (see documentation)
+     * @return true if current environment was saved for user; false otherwise.
+     * @throws ProtectimusApiException
+     */
+    public boolean saveEnvironment(long userId, String userLogin, String jsonEnvironment)
+            throws ProtectimusApiException {
+        AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
+                username, this.apikey, ResponseFormat.XML, version);
+        return XmlUtils.parseAuthenticationResult(authServiceClient
+                .saveEnvironment(String.valueOf(userId), userLogin, jsonEnvironment));
+    }
+
+    /**
 	 * 
 	 * Performs authentication for token with id <code>tokenId</code>, which is
-	 * assigned to resource with id <code>resourceId</code> (or name <code>resourceName</code>).
+	 * assigned to resource with id <code>resourceId</code>.
 	 * 
 	 * @param resourceId
-	 * @param resourceName
 	 * @param tokenId
 	 * @param otp
 	 *            - one-time password from token
@@ -106,23 +159,22 @@ public class ProtectimusApi {
 	 * @return true if authentication was successful; false otherwise.
 	 * @throws ProtectimusApiException
 	 */
-	public boolean authenticateToken(long resourceId, String resourceName, long tokenId, String otp,
+	public boolean authenticateToken(long resourceId, long tokenId, String otp,
 			String ip) throws ProtectimusApiException {
 		AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parseAuthenticationResult(authServiceClient
-				.authenticateToken(String.valueOf(resourceId), resourceName,
+				.authenticateToken(String.valueOf(resourceId), null,
 						String.valueOf(tokenId), otp, ip));
 	}
 
 	/**
 	 * 
 	 * Performs static password authentication for user with id
-	 * <code>userId</code> (or login <code>userLogin</code>), which is assigned to
-	 * resource with id <code>resourceId</code> (or name <code>resourceName</code>).
+	 * <code>userId</code> or login <code>userLogin</code>, which is assigned to
+	 * resource with id <code>resourceId</code>.
 	 * 
 	 * @param resourceId
-	 * @param resourceName
 	 * @param userId
 	 * @param userLogin
 	 * @param password
@@ -133,24 +185,23 @@ public class ProtectimusApi {
 	 * @return true if authentication was successful; false otherwise.
 	 * @throws ProtectimusApiException
 	 */
-	public boolean authenticateUserPassword(long resourceId, String resourceName, long userId,
+	public boolean authenticateUserPassword(long resourceId, long userId,
 			String userLogin, String password, String ip)
 			throws ProtectimusApiException {
 		AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parseAuthenticationResult(authServiceClient
-				.authenticateUserPassword(String.valueOf(resourceId), resourceName,
+				.authenticateUserPassword(String.valueOf(resourceId), null,
 						String.valueOf(userId), userLogin, password, ip));
 	}
 
-	/**
+    /**
 	 * 
 	 * Performs one-time password authentication for user with id
-	 * <code>userId</code> (or login <code>userLogin</code>), which is assigned
-	 * with token to resource with id <code>resourceId</code> (or name <code>resourceName</code>).
+	 * <code>userId</code> or login <code>userLogin</code>, which is assigned
+	 * with token to resource with id <code>resourceId</code>.
 	 * 
 	 * @param resourceId
-	 * @param resourceName
 	 * @param userId
 	 * @param userLogin
 	 * @param otp
@@ -161,13 +212,13 @@ public class ProtectimusApi {
 	 * @return true if authentication was successful; false otherwise.
 	 * @throws ProtectimusApiException
 	 */
-	public boolean authenticateUserToken(long resourceId, String resourceName, Long userId,
+	public boolean authenticateUserToken(long resourceId, Long userId,
 			String userLogin, String otp, String ip)
 			throws ProtectimusApiException {
 		AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parseAuthenticationResult(authServiceClient
-				.authenticateUserToken(String.valueOf(resourceId), resourceName,
+				.authenticateUserToken(String.valueOf(resourceId), null,
 						userId != null ? String.valueOf(userId) : "",
 						userLogin, otp, ip));
 	}
@@ -175,11 +226,10 @@ public class ProtectimusApi {
 	/**
 	 * 
 	 * Performs one-time password and static password authentication for user
-	 * with id <code>userId</code> (or login <code>userLogin</code>), which is
-	 * assigned with token to resource with id <code>resourceId</code> (or name <code>resourceName</code>).
+	 * with id <code>userId</code> or login <code>userLogin</code>, which is
+	 * assigned with token to resource with id <code>resourceId</code>.
 	 * 
 	 * @param resourceId
-	 * @param resourceName
 	 * @param userId
 	 * @param userLogin
 	 * @param otp
@@ -192,14 +242,14 @@ public class ProtectimusApi {
 	 * @return true if authentication was successful; false otherwise.
 	 * @throws ProtectimusApiException
 	 */
-	public boolean authenticateUserPasswordToken(long resourceId, String resourceName, long userId,
+	public boolean authenticateUserPasswordToken(long resourceId, long userId,
 			String userLogin, String otp, String password, String ip)
 			throws ProtectimusApiException {
 		AuthServiceClient authServiceClient = new AuthServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parseAuthenticationResult(authServiceClient
 				.authenticateUserPasswordToken(String.valueOf(resourceId),
-						resourceName, String.valueOf(userId), userLogin, otp, password,
+						null, String.valueOf(userId), userLogin, otp, password,
 						ip));
 	}
 
@@ -209,15 +259,16 @@ public class ProtectimusApi {
 	 * <code>offset</code>)
 	 * 
 	 * @param offset
-	 * @return list of resources
+     * @param limit
+     * @return list of resources
 	 * @throws ProtectimusApiException
 	 */
-	public List<Resource> getResources(int offset)
+	public List<Resource> getResources(int offset, int limit)
 			throws ProtectimusApiException {
 		ResourceServiceClient resourceServiceClient = new ResourceServiceClient(
 				apiUrl, username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parseResources(resourceServiceClient
-				.getResources(String.valueOf(offset)));
+				.getResources(String.valueOf(offset), String.valueOf(limit)));
 	}
 
 	/**
@@ -265,6 +316,21 @@ public class ProtectimusApi {
 		return XmlUtils.parseId(resourceServiceClient.addResource(resourceName,
 				String.valueOf(failedAttemptsBeforeLock)));
 	}
+
+    /**
+     *
+     * Adds a new resource
+     *
+     * @param resourceName
+     * @return id of a new resource
+     * @throws ProtectimusApiException
+     */
+    public long addResource(String resourceName)
+            throws ProtectimusApiException {
+        ResourceServiceClient resourceServiceClient = new ResourceServiceClient(
+                apiUrl, username, this.apikey, ResponseFormat.XML, version);
+        return XmlUtils.parseId(resourceServiceClient.addResource(resourceName, null));
+    }
 
 	/**
 	 * Edits an existing resource with <code>resourceId</code>
@@ -364,6 +430,8 @@ public class ProtectimusApi {
 				String.valueOf(resourceId), resourceName,
 				String.valueOf(tokenId)));
 	}
+
+
 
 	/**
 	 * 
@@ -523,14 +591,15 @@ public class ProtectimusApi {
 	 * <code>offset</code>)
 	 * 
 	 * @param offset
-	 * @return list of tokens
+     * @param limit
+     * @return list of tokens
 	 * @throws ProtectimusApiException
 	 */
-	public List<Token> getTokens(int offset) throws ProtectimusApiException {
+	public List<Token> getTokens(TokenFilter tokenFilter, int offset, int limit) throws ProtectimusApiException {
 		TokenServiceClient tokenServiceClient = new TokenServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
-		return XmlUtils.parseTokens(tokenServiceClient.getTokens(String
-				.valueOf(offset)));
+		return XmlUtils.parseTokens(tokenServiceClient.getTokens(tokenFilter, String
+				.valueOf(offset), String.valueOf(limit)));
 	}
 
 	/**
@@ -628,6 +697,122 @@ public class ProtectimusApi {
 				counter, challenge));
 	}
 
+
+    /**
+     *
+     * Adds token, that will send one-time passwords to specified e-mail.
+     * Throw this method created token can be assigned to user.
+     *
+     * @param userId - id of the user to whom the token will be assigned
+     * @param userLogin - login of the user to whom the token will be assigned
+     * @param email - the address to which OTP will be send
+     * @param name - the name of the created token
+     * @param otpLength - length of the one-time password (6 or 8 digits)
+     * @param pin - pin-code, that user will have enter with OTP
+     * @param pinFormat - where the pin is attached: before or after OTP
+     *
+     * @return id of the created token
+     * @throws ProtectimusApiException
+     */
+    public long addMailToken(Long userId, String userLogin, String email, String name, Short otpLength, String pin, PinOtpFormat pinFormat) throws ProtectimusApiException {
+        if (email == null || email.trim().length() == 0) {
+            throw new ProtectimusApiException("Email is required", null, ErrorCode.INVALID_PARAMETER);
+        }
+
+        return addSoftwareToken(userId, userLogin, TokenType.MAIL, email, name, "123456", "123456", otpLength, null, pin, pinFormat);
+    }
+
+    /**
+     *
+     * Adds token, that will send one-time passwords to specified e-mail.
+     *
+     * @param email - the address to which OTP will be send
+     * @param name - the name of the created token
+     * @param otpLength - length of the one-time password (6 or 8 digits)
+     * @param pin - pin-code, that user will have enter with OTP (optional)
+     * @param pinFormat - where the pin is attached: before or after OTP
+     *
+     * @return id of the created token
+     * @throws ProtectimusApiException
+     */
+    public long addMailToken(String email, String name, Short otpLength, String pin, PinOtpFormat pinFormat) throws ProtectimusApiException {
+        return addMailToken(null, null, email,name,otpLength, pin, pinFormat);
+    }
+
+    /**
+     *
+     * Adds token, that will send one-time passwords to specified e-mail.
+     *
+     * @param email - the address to which OTP will be send
+     * @param name - the name of the created token
+     * @param otpLength - length of the one-time password (6 or 8 digits)
+     *
+     * @return id of the created token
+     * @throws ProtectimusApiException
+     */
+    public long addMailToken(String email, String name, Short otpLength) throws ProtectimusApiException {
+        return addMailToken(null, null, email,name,otpLength, null, null);
+    }
+
+    /**
+     *
+     * Adds token, that will send one-time passwords in SMS to specified phone.
+     * Throw this method created token can be assigned to user.
+     *
+     * @param userId - id of the user to whom the token will be assigned
+     * @param userLogin - login of the user to whom the token will be assigned
+     * @param phoneNumber - the phone number to which SMS with OTP will be send
+     * @param name - the name of the created token
+     * @param otpLength - length of the one-time password (6 or 8 digits)
+     * @param pin - pin-code, that user will have enter with OTP
+     * @param pinFormat - where the pin is attached: before or after OTP
+     *
+     * @return id of the created token
+     * @throws com.protectimus.api.sdk.exceptions.ProtectimusApiException
+     */
+    public long addSMSToken(Long userId, String userLogin, String phoneNumber, String name, Short otpLength, String pin, PinOtpFormat pinFormat) throws ProtectimusApiException {
+        if (phoneNumber == null || phoneNumber.trim().length() == 0) {
+            throw new ProtectimusApiException("Phone number is required", null, ErrorCode.INVALID_PARAMETER);
+        }
+
+        return addSoftwareToken(userId, userLogin, TokenType.SMS, phoneNumber, name, "123456", "123456", otpLength, null, pin, pinFormat);
+    }
+
+    /**
+     *
+     * Adds token, that will send one-time passwords in SMS to specified phone.
+     *
+     *  @param phoneNumber - the phone number to which SMS with OTP will be send
+     * @param name - the name of the created token
+     * @param otpLength - length of the one-time password (6 or 8 digits)
+     * @param pin - pin-code, that user will have enter with OTP
+     * @param pinFormat - where the pin is attached: before or after OTP
+     *
+     * @return id of the created token
+     * @throws com.protectimus.api.sdk.exceptions.ProtectimusApiException
+     */
+    public long addSMSToken(String phoneNumber, String name, Short otpLength, String pin, PinOtpFormat pinFormat) throws ProtectimusApiException {
+        return addSMSToken(null, null, phoneNumber,name, otpLength, pin, pinFormat);
+    }
+
+    /**
+     *
+     * Adds token, that will send one-time passwords in SMS to specified phone.
+     *
+     *  @param phoneNumber - the phone number to which SMS with OTP will be send
+     * @param name - the name of the created token
+     * @param otpLength - length of the one-time password (6 or 8 digits)
+     *
+     * @return id of the created token
+     * @throws com.protectimus.api.sdk.exceptions.ProtectimusApiException
+     */
+    public long addSMSToken(String phoneNumber, String name, Short otpLength) throws ProtectimusApiException {
+        return addSMSToken(null, null, phoneNumber,name, otpLength, null, null);
+    }
+
+
+
+
 	/**
 	 * 
 	 * Adds software token
@@ -676,6 +861,10 @@ public class ProtectimusApi {
 					"Token of this type is not a software token", null,
 					ErrorCode.INVALID_PARAMETER);
 		}
+        checkIfPinAndPinFormatIsCorrectlySpecified(pin, pinOtpFormat);
+        if (type == TokenType.PROTECTIMUS_SMART && keyType == null) {
+            throw  new ProtectimusApiException("Key type required for token Protectimus SMART", null, ErrorCode.MISSING_PARAMETER);
+        }
 		switch (type) {
 		case SMS:
 		case MAIL:
@@ -692,6 +881,227 @@ public class ProtectimusApi {
 				keyType != null ? String.valueOf(keyType) : null, pin,
 				pinOtpFormat != null ? String.valueOf(pinOtpFormat) : null));
 	}
+
+    /**
+     *
+     * Adds software token
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param name
+     *            - token name
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @param otpLength
+     *            - length of the one-time password (6 or 8 digits), parameter
+     *            is required for PROTECTIMUS_SMART token
+     * @param keyType
+     *            - type of key for PROTECTIMUS_SMART token, allowed values
+     *            "HOTP" (counter-based) or "TOTP" (time-based), parameter is
+     *            required for PROTECTIMUS_SMART token
+     * @param pin
+     *            - pin-code (optional)
+     * @param pinOtpFormat
+     *            - usage of a pin-code with one-time password (adding pin-code
+     *            before or after one-time password)
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addSoftwareToken(TokenType type,
+                                 String serialNumber, String name, String secret, String otp,
+                                 Short otpLength, OtpKeyType keyType, String pin,
+                                 PinOtpFormat pinOtpFormat) throws ProtectimusApiException {
+       return addSoftwareToken(null, null, type, serialNumber, name, secret, otp, otpLength, keyType, pin, pinOtpFormat);
+    }
+
+    /**
+     *
+     * Adds software token
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @param otpLength
+     *            - length of the one-time password (6 or 8 digits), parameter
+     *            is required for PROTECTIMUS_SMART token
+     * @param keyType
+     *            - type of key for PROTECTIMUS_SMART token, allowed values
+     *            "HOTP" (counter-based) or "TOTP" (time-based), parameter is
+     *            required for PROTECTIMUS_SMART token
+     * @param pin
+     *            - pin-code (optional)
+     * @param pinOtpFormat
+     *            - usage of a pin-code with one-time password (adding pin-code
+     *            before or after one-time password)
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addSoftwareToken(TokenType type, String serialNumber, String secret, String otp,
+                                 Short otpLength, OtpKeyType keyType, String pin,
+                                 PinOtpFormat pinOtpFormat) throws ProtectimusApiException {
+        return addSoftwareToken(null, null, type, serialNumber, null, secret, otp, otpLength, keyType, pin, pinOtpFormat);
+    }
+
+    /**
+     *
+     * Adds software token
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @param otpLength
+     *            - length of the one-time password (6 or 8 digits), parameter
+     *            is required for PROTECTIMUS_SMART token
+     * @param keyType
+     *            - type of key for PROTECTIMUS_SMART token, allowed values
+     *            "HOTP" (counter-based) or "TOTP" (time-based), parameter is
+     *            required for PROTECTIMUS_SMART token
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addSoftwareToken(TokenType type, String serialNumber, String secret, String otp,
+                                 Short otpLength, OtpKeyType keyType) throws ProtectimusApiException {
+        return addSoftwareToken(null, null, type, serialNumber, null, secret, otp, otpLength, keyType, null, null);
+    }
+
+    /**
+     *
+     * Adds software time-based token (keyType parameter is TOTP)
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @param otpLength
+     *            - length of the one-time password (6 or 8 digits), parameter
+     *            is required for PROTECTIMUS_SMART token
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addSoftwareTimeBasedToken(TokenType type, String serialNumber, String secret, String otp,
+                                 Short otpLength) throws ProtectimusApiException {
+        return addSoftwareToken(null, null, type, serialNumber, null, secret, otp, otpLength, OtpKeyType.TOTP, null, null);
+    }
+
+    /**
+     *
+     * Adds software counter-based token (keyType parameter is HOTP)
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @param otpLength
+     *            - length of the one-time password (6 or 8 digits), parameter
+     *            is required for PROTECTIMUS_SMART token
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addSoftwareCounterBasedToken(TokenType type, String serialNumber, String secret, String otp,
+                                     Short otpLength) throws ProtectimusApiException {
+        return addSoftwareToken(null, null, type, serialNumber, null, secret, otp, otpLength, OtpKeyType.HOTP, null, null);
+    }
+
+
+    /**
+     *
+     * Adds software time-based token (keyType parameter is TOTP), that generate 6-digit one-time password.
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addSoftwareSixDigitTimeBasedToken(TokenType type, String serialNumber, String secret, String otp) throws ProtectimusApiException {
+        return addSoftwareToken(null, null, type, serialNumber, null, secret, otp, (short) 6, OtpKeyType.TOTP, null, null);
+    }
+
+    /**
+     *
+     * Adds software time-based token (keyType parameter is TOTP), that generate 8-digit one-time password.
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addSoftwareEightDigitTimeBasedToken(TokenType type, String serialNumber, String secret, String otp) throws ProtectimusApiException {
+        return addSoftwareToken(null, null, type, serialNumber, null, secret, otp, (short) 8, OtpKeyType.TOTP, null, null);
+    }
+
+    /**
+     *
+     * Adds software counter-based token (keyType parameter is HOTP), that generate 8-digit one-time password.
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addSoftwareEightDigitCounterBasedToken(TokenType type, String serialNumber, String secret, String otp) throws ProtectimusApiException {
+        return addSoftwareToken(null, null, type, serialNumber, null, secret, otp, (short) 8, OtpKeyType.HOTP, null, null);
+    }
+
+    /**
+     *
+     * Adds software counter-based token (keyType parameter is HOTP), that generate 6-digit one-time password.
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addSoftwareSixDigitCounterBasedToken(TokenType type, String serialNumber, String secret, String otp) throws ProtectimusApiException {
+        return addSoftwareToken(null, null, type, serialNumber, null, secret, otp, (short) 6, OtpKeyType.HOTP, null, null);
+    }
+
+
 
 	/**
 	 * 
@@ -725,7 +1135,7 @@ public class ProtectimusApi {
 	 */
 	public long addHardwareToken(String userId, String userLogin,
 			TokenType type, String serialNumber, String name, String secret,
-			String otp, boolean isExistedToken, String pin, String pinOtpFormat)
+			String otp, boolean isExistedToken, String pin, PinOtpFormat pinOtpFormat)
 			throws ProtectimusApiException {
 		TokenServiceClient tokenServiceClient = new TokenServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
@@ -738,12 +1148,180 @@ public class ProtectimusApi {
 					"Token of this type is not a hardware token", null,
 					ErrorCode.INVALID_PARAMETER);
 		}
-		return XmlUtils.parseId(tokenServiceClient.addHardwareToken(
+        checkIfPinAndPinFormatIsCorrectlySpecified(pin, pinOtpFormat);
+        return XmlUtils.parseId(tokenServiceClient.addHardwareToken(
 				userId != null ? String.valueOf(userId) : "", userLogin, String
 						.valueOf(type), serialNumber, name, secret, otp, String
 						.valueOf(isExistedToken), pin,
 				pinOtpFormat != null ? String.valueOf(pinOtpFormat) : null));
 	}
+
+    /**
+     *
+     * Adds hardware token
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param name
+     *            - token name
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @param isExistedToken
+     *            - false indicates that you are adding your own token, true
+     *            indicates that you are adding token, which is provided by
+     *            Protectimus
+     * @param pin
+     *            - pin-code (optional)
+     * @param pinOtpFormat
+     *            - usage of a pin-code with one-time password (adding pin-code
+     *            before or after one-time password)
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addHardwareToken(TokenType type, String serialNumber, String name, String secret,
+                                 String otp, boolean isExistedToken, String pin, PinOtpFormat pinOtpFormat)
+            throws ProtectimusApiException {
+        return addHardwareToken(null, null, type, serialNumber, name,secret,otp,isExistedToken,pin,pinOtpFormat);
+    }
+
+    /**
+     *
+     * Adds hardware token
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @param isExistedToken
+     *            - false indicates that you are adding your own token, true
+     *            indicates that you are adding token, which is provided by
+     *            Protectimus
+     * @param pin
+     *            - pin-code (optional)
+     * @param pinOtpFormat
+     *            - usage of a pin-code with one-time password (adding pin-code
+     *            before or after one-time password)
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addHardwareToken(TokenType type, String serialNumber, String secret, String otp, boolean isExistedToken, String pin, PinOtpFormat pinOtpFormat)
+            throws ProtectimusApiException {
+        return addHardwareToken(null, null, type, serialNumber, null, secret,otp,isExistedToken,pin,pinOtpFormat);
+    }
+
+    /**
+     *
+     * Adds hardware token, that wasn't offered from Protectimus (parameter "existed" is false).
+     *
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @param pin
+     *            - pin-code (optional)
+     * @param pinOtpFormat
+     *            - usage of a pin-code with one-time password (adding pin-code
+     *            before or after one-time password)
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addHardwareToken(TokenType type, String serialNumber, String secret, String otp, String pin, PinOtpFormat pinOtpFormat)
+            throws ProtectimusApiException {
+        return addHardwareToken(null, null, type, serialNumber, null, secret,otp,false,pin,pinOtpFormat);
+    }
+
+    /**
+     *
+     * Adds hardware token, that wasn't offered from Protectimus (parameter "existed" is false).
+     *
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addHardwareToken(TokenType type, String serialNumber, String secret, String otp)
+            throws ProtectimusApiException {
+        return addHardwareToken(null, null, type, serialNumber, null, secret,otp, false, null, null);
+    }
+
+    /**
+     *
+     * Adds hardware token, that wasn't offered from Protectimus (parameter "existed" is false).
+     *
+     *
+     * @param type
+     *            - token type
+     * @param name - the name of the created token
+     * @param serialNumber
+     *            - token serial number
+     * @param secret
+     *            - token secret key
+     * @param otp
+     *            - one-time password from token
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addHardwareToken(TokenType type, String name, String serialNumber, String secret, String otp)
+            throws ProtectimusApiException {
+        return addHardwareToken(null, null, type, serialNumber, name, secret,otp, false, null, null);
+    }
+
+    /**
+     *
+     * Adds hardware token, that was offered from Protectimus (parameter "existed" is true).
+     *
+     * @param type
+     *            - token type
+     * @param name - the name of the created token
+     * @param serialNumber
+     *            - token serial number
+     * @param otp
+     *            - one-time password from token
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addHardwareProtectimusToken(TokenType type, String name, String serialNumber, String otp)
+            throws ProtectimusApiException {
+        return addHardwareToken(null, null, type, serialNumber, name, null, otp, true, null, null);
+    }
+
+    /**
+     *
+     * Adds hardware token, that was offered from Protectimus (parameter "existed" is true).
+     *
+     * @param type
+     *            - token type
+     * @param serialNumber
+     *            - token serial number
+     * @param otp
+     *            - one-time password from token
+     * @return id of a new token
+     * @throws ProtectimusApiException
+     */
+    public long addHardwareProtectimusToken(TokenType type, String serialNumber, String otp)
+            throws ProtectimusApiException {
+        return addHardwareToken(null, null, type, serialNumber, null, null, otp, true, null, null);
+    }
 
 	/**
 	 * 
@@ -769,7 +1347,7 @@ public class ProtectimusApi {
 	 * 
 	 * Edits an existing token
 	 * 
-	 * @param token
+	 * @param token - token to edit
 	 * @return edited token
 	 * @throws ProtectimusApiException
 	 */
@@ -830,20 +1408,77 @@ public class ProtectimusApi {
 		unassignToken(token.getId());
 	}
 
+    /**
+     *
+     * Allows to generate OTP based on some user's specific data, f.e. on transaction id, amount, receiver and so on. <br/>
+     * After call of this method you will receive passed data back and special challenge, based on this data.<br/>
+     * User have to check those data and use the chellange for OTP generating if data is ok.
+     *
+     * @param tokenId - id of the token, with which transaction must be signed.
+     * @param transactionData - transaction specific data, that must be used in OTP generation.
+     *                        The data must be presented in a key-value format, splitted with the pipe symbol, f.e.: "key1=value1|key2=value2..keyN=valueN"
+     * @throws ProtectimusApiException
+     */
+    public SignTransaction signTransaction(long tokenId, String transactionData) throws ProtectimusApiException {
+        TokenServiceClient tokenServiceClient = new TokenServiceClient(apiUrl,
+                username, this.apikey, ResponseFormat.XML, version);
+        return XmlUtils.parseSignTransaction(tokenServiceClient.signTransaction(tokenId, transactionData, getMacSha256Hash(transactionData)));
+    }
+
+    private String getMacSha256Hash(String transactionData) {
+        try {
+            Mac hmac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec macKey = new SecretKeySpec(apikey.getBytes(), "RAW");
+            hmac.init(macKey);
+            return byteArrayToHexString(hmac.doFinal(transactionData.getBytes()));
+        } catch (GeneralSecurityException gse) {
+            throw new UndeclaredThrowableException(gse);
+        }
+    }
+
+    public static String byteArrayToHexString(byte[] bytes) {
+        char[] hexArray = "0123456789ABCDEF".toCharArray();
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = hexArray[v >>> 4];
+            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+        }
+        return new String(hexChars);
+    }
+
+    /**
+     *
+     * Checks OTP, that was generated with usage of {@link com.protectimus.api.sdk.ProtectimusApi#signTransaction(long, String)} method
+     * on the base of transaction-specific data.
+     *
+     * @param tokenId
+     * @param transactionData
+     * @param otp
+     * @throws ProtectimusApiException
+     */
+    public boolean verifySignedTransaction(long tokenId, String transactionData, String otp) throws ProtectimusApiException {
+        TokenServiceClient tokenServiceClient = new TokenServiceClient(apiUrl,
+                username, this.apikey, ResponseFormat.XML, version);
+        return XmlUtils.parseAuthenticationResult(
+                tokenServiceClient.verifySignedTransaction(tokenId, transactionData, getMacSha256Hash(transactionData), otp));
+    }
+
 	/**
 	 * 
 	 * Gets a list of users descending (10 records starting from
 	 * <code>offset</code>)
 	 * 
 	 * @param offset
-	 * @return list of users
+     * @param limit
+     * @return list of users
 	 * @throws ProtectimusApiException
 	 */
-	public List<User> getUsers(int offset) throws ProtectimusApiException {
+	public List<User> getUsers(UserFilter userFilter, int offset, int limit) throws ProtectimusApiException {
 		UserServiceClient userServiceClient = new UserServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
-		return XmlUtils.parseUsers(userServiceClient.getUsers(String
-				.valueOf(offset)));
+		return XmlUtils.parseUsers(userServiceClient.getUsers(userFilter, String
+				.valueOf(offset), String.valueOf(limit)));
 	}
 
 	/**
@@ -897,6 +1532,103 @@ public class ProtectimusApi {
 				phoneNumber, password, firstName, secondName,
 				String.valueOf(apiSupport)));
 	}
+
+    /**
+     *
+     * Adds a new user
+     *
+     * @param login
+     * @param phoneNumber
+     * @param password
+     * @param firstName
+     * @param secondName
+     * @param apiSupport
+     * @return id of a new user
+     * @throws ProtectimusApiException
+     */
+    public long addUser(String login, String phoneNumber,
+                        String password, String firstName, String secondName,
+                        boolean apiSupport) throws ProtectimusApiException {
+        UserServiceClient userServiceClient = new UserServiceClient(apiUrl,
+                username, this.apikey, ResponseFormat.XML, version);
+        return XmlUtils.parseId(userServiceClient.addUser(login, null,
+                phoneNumber, password, firstName, secondName,
+                String.valueOf(apiSupport)));
+    }
+
+    /**
+     *
+     * Adds a new user
+     *
+     * @param login
+     * @param password
+     * @param firstName
+     * @param secondName
+     * @param apiSupport
+     * @return id of a new user
+     * @throws ProtectimusApiException
+     */
+    public long addUser(String login, String password, String firstName, String secondName,
+                        boolean apiSupport) throws ProtectimusApiException {
+        UserServiceClient userServiceClient = new UserServiceClient(apiUrl,
+                username, this.apikey, ResponseFormat.XML, version);
+        return XmlUtils.parseId(userServiceClient.addUser(login, null,
+                null, password, firstName, secondName,
+                String.valueOf(apiSupport)));
+    }
+
+    /**
+     *
+     * Adds a new user
+     *
+     * @param login
+     * @param firstName
+     * @param secondName
+     * @param apiSupport
+     * @return id of a new user
+     * @throws ProtectimusApiException
+     */
+    public long addUser(String login, String firstName, String secondName,
+                        boolean apiSupport) throws ProtectimusApiException {
+        UserServiceClient userServiceClient = new UserServiceClient(apiUrl,
+                username, this.apikey, ResponseFormat.XML, version);
+        return XmlUtils.parseId(userServiceClient.addUser(login, null,
+                null, null, firstName, secondName,
+                String.valueOf(apiSupport)));
+    }
+
+    /**
+     *
+     * Adds a new user
+     *
+     * @param login
+     * @param apiSupport
+     * @return id of a new user
+     * @throws ProtectimusApiException
+     */
+    public long addUser(String login, boolean apiSupport) throws ProtectimusApiException {
+        UserServiceClient userServiceClient = new UserServiceClient(apiUrl,
+                username, this.apikey, ResponseFormat.XML, version);
+        return XmlUtils.parseId(userServiceClient.addUser(login, null,
+                null, null, null, null,
+                String.valueOf(apiSupport)));
+    }
+
+    /**
+     *
+     * Adds a new user.
+     *
+     * @param login
+     * @return id of a new user
+     * @throws ProtectimusApiException
+     */
+    public long addUser(String login) throws ProtectimusApiException {
+        UserServiceClient userServiceClient = new UserServiceClient(apiUrl,
+                username, this.apikey, ResponseFormat.XML, version);
+        return XmlUtils.parseId(userServiceClient.addUser(login, null,
+                null, null, null, null, String.valueOf(true)));    }
+
+
 
 	/**
 	 * 
@@ -996,15 +1728,16 @@ public class ProtectimusApi {
 	 * 
 	 * @param userId
 	 * @param offset
-	 * @return list of user tokens
+     * @param limit
+     * @return list of user tokens
 	 * @throws ProtectimusApiException
 	 */
-	public List<Token> getUserTokens(long userId, int offset)
+	public List<Token> getUserTokens(long userId, int offset, int limit)
 			throws ProtectimusApiException {
 		UserServiceClient userServiceClient = new UserServiceClient(apiUrl,
 				username, this.apikey, ResponseFormat.XML, version);
 		return XmlUtils.parseTokens(userServiceClient.getUserTokens(
-				String.valueOf(userId), String.valueOf(offset)));
+				String.valueOf(userId), String.valueOf(offset), String.valueOf(limit)));
 	}
 
 	/**
@@ -1057,6 +1790,16 @@ public class ProtectimusApi {
 	}
 
 	public static void main(String[] args) {
-	}
+        StringBuilder info = new StringBuilder();
+        info.append("Hi friend! This is a main class of Protectimus Java SDK, all requests to our API can be done though it.");
+        info.append("Javadoc for methods of this class is brief enough to stay relevant. You can find out detailed documentation and integration instructions at our site: www.protectimus.com or contact our support team");
+        info.append("We hope you'll enjoy our solution!");
+    }
+
+    private void checkIfPinAndPinFormatIsCorrectlySpecified(String pin, PinOtpFormat pinFormat) throws ProtectimusApiException {
+        if (pin == null ^ pinFormat == null) {
+            throw new ProtectimusApiException("You have to specify both pin and pinOtpFormat to add PIN to this token", null, ErrorCode.MISSING_PARAMETER);
+        }
+    }
 
 }

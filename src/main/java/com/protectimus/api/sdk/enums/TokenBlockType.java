@@ -11,10 +11,9 @@ package com.protectimus.api.sdk.enums;
 /**
  * Created with IntelliJ IDEA.
  * User: bolkimen
- * Date: 2/26/14
- * Time: 12:07 PM
- * To change this template use File | Settings | File Templates.
+ * Date: 11/24/14
+ * Time: 3:36 PM
  */
-public enum UnifyTokenType {
-    OATH_HOTP, OATH_TOTP, OATH_OCRA
+public enum TokenBlockType {
+    NONE_BLOCKED, BLOCKED_BY_ADMIN, TOO_MANY_OTP_FAILED_ATTEMPTS_BLOCKED, TOO_MANY_OTP_FAILED_SYNCHRONIZATION_ATTEMPTS_BLOCKED
 }

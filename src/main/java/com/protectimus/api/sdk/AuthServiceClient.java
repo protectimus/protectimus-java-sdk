@@ -1,3 +1,11 @@
+/**
+ * Copyright (C) 2013-2014 INSART <vsolo@insart.com>
+ *
+ * This file is part of Protectimus.
+ *
+ * Protectimus can not be copied and/or distributed without the express
+ * permission of INSART
+ */
 package com.protectimus.api.sdk;
 
 import javax.ws.rs.core.MediaType;
@@ -44,7 +52,40 @@ class AuthServiceClient extends AbstractServiceClient {
 		return checkResponse(response);
 	}
 
-	public String authenticateToken(String resourceId, String resourceName,
+    public String checkEnvironment(String resourceId, String resourceName,
+                                 String userId, String userLogin,
+                                 String jsonEnvironment)
+            throws ProtectimusApiException {
+        WebResource webResource = getWebResource();
+        Form form = new Form();
+        form.add("resourceId", resourceId);
+        form.add("resourceName", resourceName);
+        form.add("userId", userId);
+        form.add("userLogin", userLogin);
+        form.add("jsonEnvironment", jsonEnvironment);
+        ClientResponse response = webResource
+                .path("authenticate/check-environment" + getExtension())
+                .type(MediaType.APPLICATION_FORM_URLENCODED)
+                .post(ClientResponse.class, form);
+        return checkResponse(response);
+    }
+
+    public String saveEnvironment(String userId, String userLogin,
+                                 String jsonEnvironment)
+            throws ProtectimusApiException {
+        WebResource webResource = getWebResource();
+        Form form = new Form();
+        form.add("userId", userId);
+        form.add("userLogin", userLogin);
+        form.add("jsonEnvironment", jsonEnvironment);
+        ClientResponse response = webResource
+                .path("authenticate/save-environment" + getExtension())
+                .type(MediaType.APPLICATION_FORM_URLENCODED)
+                .post(ClientResponse.class, form);
+        return checkResponse(response);
+    }
+
+    public String authenticateToken(String resourceId, String resourceName,
 			String tokenId, String otp, String ip)
 			throws ProtectimusApiException {
 		WebResource webResource = getWebResource();

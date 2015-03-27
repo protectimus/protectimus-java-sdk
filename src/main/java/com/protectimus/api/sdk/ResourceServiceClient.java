@@ -1,3 +1,11 @@
+/**
+ * Copyright (C) 2013-2014 INSART <vsolo@insart.com>
+ *
+ * This file is part of Protectimus.
+ *
+ * Protectimus can not be copied and/or distributed without the express
+ * permission of INSART
+ */
 package com.protectimus.api.sdk;
 
 import javax.ws.rs.core.MediaType;
@@ -21,11 +29,11 @@ class ResourceServiceClient extends AbstractServiceClient {
 		super(apiUrl, username, password, responseFormat, version);
 	}
 
-	public String getResources(String offset) throws ProtectimusApiException {
+	public String getResources(String offset, String limit) throws ProtectimusApiException {
 		WebResource webResource = getWebResource();
 		ClientResponse response = webResource
 				.path("resources" + getExtension()).queryParam("start", offset)
-				.get(ClientResponse.class);
+                .queryParam("limit", limit).get(ClientResponse.class);
 		return checkResponse(response);
 	}
 

@@ -1,3 +1,11 @@
+/**
+ * Copyright (C) 2013-2014 INSART <vsolo@insart.com>
+ *
+ * This file is part of Protectimus.
+ *
+ * Protectimus can not be copied and/or distributed without the express
+ * permission of INSART
+ */
 package com.protectimus.api.sdk;
 
 import java.io.IOException;
@@ -13,7 +21,7 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathFactory;
 
-import com.protectimus.api.sdk.pojo.Prepare;
+import com.protectimus.api.sdk.pojo.*;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -23,9 +31,6 @@ import org.xml.sax.InputSource;
 import com.protectimus.api.sdk.enums.TokenType;
 import com.protectimus.api.sdk.exceptions.ProtectimusApiException;
 import com.protectimus.api.sdk.exceptions.ProtectimusApiException.ErrorCode;
-import com.protectimus.api.sdk.pojo.Resource;
-import com.protectimus.api.sdk.pojo.Token;
-import com.protectimus.api.sdk.pojo.User;
 import org.xml.sax.SAXException;
 
 class XmlUtils {
@@ -134,7 +139,22 @@ class XmlUtils {
 		}
 	}
 
-	public static String parseSecretKey(String input)
+    public static String parseAdditionalString(String input)
+            throws ProtectimusApiException {
+        try {
+            XmlObject xmlObject = checkStatus(input);
+            return xmlObject.getXPath().evaluate(
+                    "/responseHolder/response/additional", xmlObject.getRoot());
+        } catch (Exception e) {
+            if (e instanceof ProtectimusApiException) {
+                throw (ProtectimusApiException) e;
+            }
+            throw new ProtectimusApiException("Failed to parse response",
+                    e.getMessage(), e, ErrorCode.UNKNOWN_ERROR);
+        }
+    }
+
+    public static String parseSecretKey(String input)
 			throws ProtectimusApiException {
 		try {
 			XmlObject xmlObject = checkStatus(input);
@@ -170,6 +190,32 @@ class XmlUtils {
         }
     }
 
+    public static SignTransaction parseSignTransaction(String input)
+            throws ProtectimusApiException {
+
+        System.out.println("\n\n\n" + input + "\n\n\n");
+        try {
+            SignTransaction transaction = new SignTransaction();
+            XmlObject xmlObject = checkStatus(input);
+            transaction.setChallenge(xmlObject.getXPath().evaluate(
+                    "/responseHolder/response/challenge", xmlObject.getRoot()));
+            transaction.setTokenName(xmlObject.getXPath().evaluate(
+                    "/responseHolder/response/tokenName", xmlObject.getRoot()));
+            transaction.setTokenType(xmlObject.getXPath().evaluate(
+                    "/responseHolder/response/tokenType", xmlObject.getRoot()));
+            transaction.setTransactionData(xmlObject.getXPath().evaluate(
+                    "/responseHolder/response/transactionData", xmlObject.getRoot()));
+            transaction.setTokenId(Long.parseLong(xmlObject.getXPath().evaluate(
+                    "/responseHolder/response/id", xmlObject.getRoot())));
+            return transaction;
+        } catch (Exception e) {
+            if (e instanceof ProtectimusApiException) {
+                throw (ProtectimusApiException) e;
+            }
+            throw new ProtectimusApiException("Failed to parse response",
+                    e.getMessage(), e, ErrorCode.UNKNOWN_ERROR);
+        }
+    }
     public static boolean parseAuthenticationResult(String input)
 			throws ProtectimusApiException {
 		try {

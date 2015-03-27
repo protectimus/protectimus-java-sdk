@@ -1,9 +1,18 @@
+/**
+ * Copyright (C) 2013-2014 INSART <vsolo@insart.com>
+ *
+ * This file is part of Protectimus.
+ *
+ * Protectimus can not be copied and/or distributed without the express
+ * permission of INSART
+ */
 package com.protectimus.api.sdk;
 
 import javax.ws.rs.core.MediaType;
 
 import com.protectimus.api.sdk.enums.ResponseFormat;
 import com.protectimus.api.sdk.exceptions.ProtectimusApiException;
+import com.protectimus.api.sdk.filters.TokenFilter;
 import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.WebResource;
 import com.sun.jersey.api.representation.Form;
@@ -39,10 +48,47 @@ class TokenServiceClient extends AbstractServiceClient {
 		return checkResponse(response);
 	}
 
-	public String getTokens(String offset) throws ProtectimusApiException {
+	public String getTokens(TokenFilter tokenFilter, String offset, String limit) throws ProtectimusApiException {
 		WebResource webResource = getWebResource();
-		ClientResponse response = webResource.path("tokens" + getExtension())
-				.queryParam("start", offset).get(ClientResponse.class);
+        webResource = webResource.path("tokens" + getExtension())
+                .queryParam("start", offset).queryParam("limit", limit);
+        if (tokenFilter != null) {
+            if (tokenFilter.getTokenName() != null) {
+                webResource = webResource.queryParam("tokenName", tokenFilter.getTokenName());
+            }
+            if (tokenFilter.getTokenType() != null) {
+                webResource = webResource.queryParam("tokenType", tokenFilter.getTokenType().name());
+            }
+            if (tokenFilter.getSerialNumber() != null) {
+                webResource = webResource.queryParam("serialNumber", tokenFilter.getSerialNumber());
+            }
+            if (tokenFilter.getEnabled() != null) {
+                webResource = webResource.queryParam("enabled", "" + tokenFilter.getEnabled());
+            }
+            if (tokenFilter.getBlock() != null) {
+                webResource = webResource.queryParam("block", tokenFilter.getBlock().name());
+            }
+            if (tokenFilter.getUsername() != null) {
+                webResource = webResource.queryParam("username", tokenFilter.getUsername());
+            }
+            if (tokenFilter.getClientStaffUsername() != null) {
+                webResource = webResource.queryParam("clientStaffUsername", tokenFilter.getClientStaffUsername());
+            }
+            if (tokenFilter.getResourceIds() != null) {
+                webResource = webResource.queryParam("resourceIds", tokenFilter.getResourceIds());
+            }
+            if (tokenFilter.getUseBlankNames() != null) {
+                webResource = webResource.queryParam("useBlankNames", "" + tokenFilter.getUseBlankNames());
+            }
+            if (tokenFilter.getClientName() != null) {
+                webResource = webResource.queryParam("clientName", tokenFilter.getClientName());
+            }
+            if (tokenFilter.getUseBlankNames() != null) {
+                webResource = webResource.queryParam("useBlankClientName", "" + tokenFilter.getUseBlankNames());
+            }
+
+        }
+		ClientResponse response = webResource.get(ClientResponse.class);
 		return checkResponse(response);
 	}
 
@@ -175,5 +221,31 @@ class TokenServiceClient extends AbstractServiceClient {
 				.post(ClientResponse.class, form);
 		return checkResponse(response);
 	}
+
+    public String signTransaction(long tokenId, String transactionData, String hash) throws ProtectimusApiException {
+        WebResource webResource = getWebResource();
+        Form form = new Form();
+        form.add("tokenId", tokenId);
+        form.add("transactionData", transactionData);
+        form.add("hash", hash);
+        ClientResponse response = webResource.path("tokens/sign-transaction" + getExtension())
+                .type(MediaType.APPLICATION_FORM_URLENCODED)
+                .post(ClientResponse.class, form);
+        return checkResponse(response);
+    }
+
+    public String verifySignedTransaction(long tokenId, String transactionData,
+                                          String hash, String otp) throws ProtectimusApiException {
+        WebResource webResource = getWebResource();
+        Form form = new Form();
+        form.add("tokenId", tokenId);
+        form.add("transactionData", transactionData);
+        form.add("hash", hash);
+        form.add("otp", otp);
+        ClientResponse response = webResource.path("tokens/verify-signed-transaction" + getExtension())
+                .type(MediaType.APPLICATION_FORM_URLENCODED)
+                .post(ClientResponse.class, form);
+        return checkResponse(response);
+    }
 
 }
