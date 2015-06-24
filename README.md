@@ -9,7 +9,7 @@ To integrate Protectimus into your project, you can use these two methods:<br/>
 1) Integration using the API, directly or using auxiliary libraries, like this one.<br/>
 2) Integration using the IFrame Widget for user authentication. 
 
-Regardless of the method chosen, please start the integration process by reading this page: http://protectimus.com/for-developers. It contains a lot of important information about how the system works and what you have to do to integrate OTP into your system.
+Regardless of the method chosen, please start the integration process by reading this page: https://www.protectimus.com/for-developers. It contains a lot of important information about how the system works and what you have to do to integrate OTP into your system.
 
 Our <a href="https://www.protectimus.com/materials">materials</a> page can be interesting, too. Among other things, our <a href="https://www.protectimus.com/images/pdf/Protectimus_API_manual_en.pdf">API documentation</a> can be found there. It can help you better understand exactly what each method does and how to operate all that stuff.
 
