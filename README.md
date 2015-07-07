@@ -5,9 +5,11 @@ This is an API client in Java to easily integrate Protectimus two-factor authent
 
 Two-factor authentication from Protectimus is based on one-time passwords (OTP), which are passwords that are valid for only one authentication session.
 
-To integrate Protectimus into your project, you can use these two methods:<br/>
-1) Integration using the API, directly or using auxiliary libraries, like this one.<br/>
-2) Integration using the IFrame Widget for user authentication. 
+To integrate Protectimus into your project, you can use these two methods:
+<ol>
+<li>Integration using the API, directly or using auxiliary libraries, like this one.</li>
+<li>Integration using the IFrame Widget for user authentication.</li>
+</ol>
 
 Regardless of the method chosen, please start the integration process by reading this page: https://www.protectimus.com/for-developers. It contains a lot of important information about how the system works and what you have to do to integrate OTP into your system.
 
