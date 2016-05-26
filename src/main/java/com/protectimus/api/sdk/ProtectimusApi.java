@@ -1,10 +1,10 @@
 /**
- * Copyright (C) 2013-2014 INSART <vsolo@insart.com>
+ * Copyright (C) 2013-2016 Protectimus Solutions <support@protectimus.com>
  *
- * This file is part of Protectimus.
+ * This file is a part of the Protectimus.
  *
  * Protectimus can not be copied and/or distributed without the express
- * permission of INSART
+ * permission of Protectimus Solutions LLP.
  */
 package com.protectimus.api.sdk;
 
@@ -1133,7 +1133,7 @@ public class ProtectimusApi {
 	 * @return id of a new token
 	 * @throws ProtectimusApiException
 	 */
-	public long addHardwareToken(String userId, String userLogin,
+	public long addHardwareToken(Long userId, String userLogin,
 			TokenType type, String serialNumber, String name, String secret,
 			String otp, boolean isExistedToken, String pin, PinOtpFormat pinOtpFormat)
 			throws ProtectimusApiException {

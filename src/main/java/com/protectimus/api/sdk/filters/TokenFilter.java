@@ -1,22 +1,17 @@
 /**
- * Copyright (C) 2013-2014 INSART <vsolo@insart.com>
+ * Copyright (C) 2013-2016 Protectimus Solutions <support@protectimus.com>
  *
- * This file is part of Protectimus.
+ * This file is a part of the Protectimus.
  *
  * Protectimus can not be copied and/or distributed without the express
- * permission of INSART
+ * permission of Protectimus Solutions LLP.
  */
 package com.protectimus.api.sdk.filters;
 
 import com.protectimus.api.sdk.enums.TokenBlockType;
 import com.protectimus.api.sdk.enums.TokenType;
 
-/**
- * Created with IntelliJ IDEA.
- * User: bolkimen
- * Date: 11/24/14
- * Time: 3:17 PM
- */
+
 public class TokenFilter {
     private String tokenName;
     private TokenType tokenType;
